@@ -1,0 +1,20 @@
+#!/bin/bash
+
+echo "Cross-Android configuring ..."
+
+packages=\
+"
+    xmlstarlet
+"
+libs=\
+"
+"
+cd prerequisite/
+if ! ./configure.sh "${packages}" "${libs}"
+then
+    echo "Cross-Android configuration failed."
+    exit -1
+fi
+cd ../
+
+echo "Cross-Android configured."

@@ -1,0 +1,8 @@
+/_obj/
+/obj/
+/bin/
+/lib/
+/build/
+/classes.dex
+/AndroidManifest.xml
+/src/java/com/shaidin/cross/R.java
