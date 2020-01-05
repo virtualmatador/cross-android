@@ -15,12 +15,13 @@ import android.widget.ImageView;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
-import java.net.URL;
 import java.util.HashMap;
 
 public class MainActivity extends Activity
@@ -286,15 +287,16 @@ public class MainActivity extends Activity
                     httpURLConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                     try
                     {
+                        httpURLConnection.setDoInput(true);
                         httpURLConnection.setDoOutput(true);
                         httpURLConnection.setChunkedStreamingMode(0);
                         OutputStream outputStream = new BufferedOutputStream(httpURLConnection.getOutputStream());
                         OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
                         for (HashMap.Entry<String, String> entry : params.entrySet())
                         {
-                            outputStreamWriter.write(entry.getKey());
+                            outputStreamWriter.write(URLEncoder.encode(entry.getKey()));
                             outputStreamWriter.write("=");
-                            outputStreamWriter.write(entry.getValue());
+                            outputStreamWriter.write(URLEncoder.encode(entry.getValue()));
                             outputStreamWriter.write("&");
                         }
                         outputStreamWriter.flush();
