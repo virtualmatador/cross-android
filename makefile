@@ -37,8 +37,8 @@ bin/$(cross_identifier).apk: src/java/com/shaidin/cross/R.java classes.dex Andro
 	export PATH="$$PATH:$(jre_dir)/bin" && $(sdk_tools_dir)/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android bin/aligned.apk
 	mv bin/aligned.apk $@
 
-AndroidManifest.xml: AndroidManifest.xml.in
-	cp $^ $@
+AndroidManifest.xml: AndroidManifest.xml.in ../../manifest.txt
+	cp $< $@
 	xmlstarlet ed -L \
 		-u "/manifest/application/@android:label" -v $(word 3,$(subst ., ,$(cross_identifier))) \
 		-u "/manifest/application/@android:versionCode" -v $(cross_release_number) \
