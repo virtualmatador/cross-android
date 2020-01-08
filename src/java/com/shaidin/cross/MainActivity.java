@@ -178,9 +178,8 @@ public class MainActivity extends Activity
         {
             public void run()
             {
-                int width = image_width;
-                float scale = (float)width / (float)image_view_.getWidth();
-                bmp_ = Bitmap.createBitmap(width,
+                float scale = (float)image_width / (float)image_view_.getWidth();
+                bmp_ = Bitmap.createBitmap(image_width,
                     (int)(image_view_.getHeight() * scale), Bitmap.Config.ARGB_8888);
                 pixels_ = new int[bmp_.getWidth() * bmp_.getHeight()];
                 HandleAsync(sender, "body", "ready", (int)(getResources().getDisplayMetrics().xdpi * scale) + " " +

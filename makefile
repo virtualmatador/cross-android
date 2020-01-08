@@ -15,6 +15,7 @@ endif
 ndk_path := $(shell ls -d ~/Android/Sdk/ndk/* | tail -n 1)
 CC := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang
 CXX := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++
+CPPFLAGS := -o2
 sysroot := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/sysroot
 abi_armeabi-v7a := armv7a-linux-androideabi
 abi_arm64-v8a := aarch64-linux-android
