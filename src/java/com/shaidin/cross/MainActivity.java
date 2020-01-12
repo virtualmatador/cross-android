@@ -1,3 +1,11 @@
+//
+//  MainActivity.java
+//  android
+//
+//  Created by Ali Asadpoor on 1/15/19.
+//  Copyright © 2020 Shaidin. All rights reserved.
+//
+
 package com.shaidin.cross;
 
 import android.app.Activity;
@@ -160,6 +168,7 @@ public class MainActivity extends Activity
                             "{" +
                             "Handler.postMessage(Handler_Receiver, id, command, info);" +
                             "}", null);
+                        HandleAsync(sender, "body", "ready", "");
                     }
                 });
                 web_view_.loadUrl("file:///android_asset/html/" + fileName + ".htm");
