@@ -26,6 +26,7 @@ jmethodID set_preference_;
 jmethodID post_thread_message_;
 jmethodID add_param_;
 jmethodID post_http_;
+jmethodID play_audio_;
 jmethodID exit_;
 jintArray j_pixels_;
 
@@ -47,16 +48,20 @@ void bridge::NeedRestart()
     env_->CallVoidMethod(me_, need_restart_);
 }
 
-void bridge::LoadWebView(const __int32_t sender, const __int32_t view_info, const char* html)
+void bridge::LoadWebView(const __int32_t sender, const __int32_t view_info, const char* html, const char* waves)
 {
     jstring jHtml = env_->NewStringUTF(html);
-    env_->CallVoidMethod(me_, load_web_view_, sender, view_info, jHtml);
+    jstring jWaves = env_->NewStringUTF(waves);
+    env_->CallVoidMethod(me_, load_web_view_, sender, view_info, jHtml, jWaves);
     env_->DeleteLocalRef(jHtml);
+    env_->DeleteLocalRef(jWaves);
 }
 
-void bridge::LoadImageView(const __int32_t sender, const __int32_t view_info, const __int32_t image_width)
+void bridge::LoadImageView(const __int32_t sender, const __int32_t view_info, const __int32_t image_width, const char* waves)
 {
-    env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width);
+    jstring jWaves = env_->NewStringUTF(waves);
+    env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width, jWaves);
+    env_->DeleteLocalRef(jWaves);
 }
 
 __uint32_t* bridge::GetPixels()
@@ -143,13 +148,18 @@ void bridge::AddParam(const char *key, const char *value)
 
 void bridge::PostHttp(const __int32_t sender, const char* id, const char* command, const char *url)
 {
-    jstring jUrl = env_->NewStringUTF(url);
     jstring jId = env_->NewStringUTF(id);
     jstring jCommand = env_->NewStringUTF(command);
+    jstring jUrl = env_->NewStringUTF(url);
     env_->CallVoidMethod(me_, post_http_, sender, jId, jCommand, jUrl);
-    env_->DeleteLocalRef(jUrl);
     env_->DeleteLocalRef(jId);
     env_->DeleteLocalRef(jCommand);
+    env_->DeleteLocalRef(jUrl);
+}
+
+void bridge::PlayAudio(const __int32_t index)
+{
+    env_->CallVoidMethod(me_, play_audio_, index);
 }
 
 void bridge::Exit()
@@ -165,9 +175,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNI
     need_restart_ = env_->GetMethodID(env_->GetObjectClass(me_), "NeedRestart",
             "()V");
     load_web_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadWebView",
-            "(IILjava/lang/String;)V");
+            "(IILjava/lang/String;Ljava/lang/String;)V");
     load_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadImageView",
-            "(III)V");
+            "(IIILjava/lang/String;)V");
     refresh_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "RefreshImageView",
             "()V");
     call_function_ = env_->GetMethodID(env_->GetObjectClass(me_), "CallFunction",
@@ -184,6 +194,8 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNI
             "(Ljava/lang/String;Ljava/lang/String;)V");
     post_http_ = env_->GetMethodID(env_->GetObjectClass(me_), "PostHttp",
             "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+    play_audio_ = env_->GetMethodID(env_->GetObjectClass(me_), "PlayAudio",
+            "(I)V");
     exit_= env_->GetMethodID(env_->GetObjectClass(me_), "Exit",
             "()V");
     interface::Create();
