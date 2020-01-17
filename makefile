@@ -3,7 +3,6 @@ sdk_tools_dir := $(shell ls -d ~/Android/Sdk/build-tools/* | tail -n 1)
 sdk_platforms_dir := $(shell ls -d ~/Android/Sdk/platforms/* | tail -n 1)
 jre_dir := ~/android-studio/jre
 java_sources := $(wildcard src/java/com/shaidin/cross/*.java)
-assets := $(shell find -L assets/ -type f)
 resources := $(shell find -L res/ -type f)
 ifeq ($(wildcard src/java/com/shaidin/cross/R.java),)
 	java_sources := $(java_sources) src/java/com/shaidin/cross/R.java
@@ -25,12 +24,18 @@ lib_version := $(shell ls -d $(ndk_path)/platforms/* | tail -n 1 | sed 's/.*\/an
 core_objects := $(patsubst ../core/src/%.cpp, %.o, $(wildcard ../core/src/*.cpp))
 main_objects := $(patsubst ../../src/%.cpp, %.o, $(wildcard ../../src/*.cpp))
 bridge_object := bridge-lib.o
+assets_list := $(shell (find -L ../../assets/ -type f && find -L ../../html/ -type f) | sort)
 
 .PHONY: run clean
 
-bin/$(cross_identifier).apk: src/java/com/shaidin/cross/R.java classes.dex AndroidManifest.xml $(native_libs) $(assets)
+$(shell mkdir -p build)
+$(shell echo $(assets_list) > build/assets-list-tmp)
+$(shell if ! test -f build/assets-list; then touch build/assets-list; fi)
+$(shell if diff build/assets-list-tmp build/assets-list > /dev/null; then rm -f build/assets-list-tmp; else	mv build/assets-list-tmp build/assets-list; fi)
+
+bin/$(cross_identifier).apk: src/java/com/shaidin/cross/R.java classes.dex AndroidManifest.xml build/assets-list $(native_libs) $(assets_list)
 	mkdir -p bin
-	$(sdk_tools_dir)/aapt package -f -m -F bin/unaligned.apk -M AndroidManifest.xml -S res -A assets/ -I $(sdk_platforms_dir)/android.jar --min-sdk-version 14 --target-sdk-version $(lib_version)
+	$(sdk_tools_dir)/aapt package -f -m -F bin/unaligned.apk -M AndroidManifest.xml -S res -A ../../assets/ -A ../../html/ -I $(sdk_platforms_dir)/android.jar --min-sdk-version 14 --target-sdk-version $(lib_version)
 	$(sdk_tools_dir)/aapt add bin/unaligned.apk classes.dex
 	for native_lib in $(native_libs);do $(sdk_tools_dir)/aapt add bin/unaligned.apk $${native_lib}; done
 	$(sdk_tools_dir)/zipalign -f 4 bin/unaligned.apk bin/aligned.apk
