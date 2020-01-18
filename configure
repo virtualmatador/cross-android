@@ -5,6 +5,7 @@ echo "Cross-Android configuring ..."
 packages=\
 "
     xmlstarlet
+    imagemagick
 "
 libs=\
 "

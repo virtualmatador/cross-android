@@ -10,6 +10,7 @@ package com.shaidin.cross;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
 import android.content.res.AssetFileDescriptor;
@@ -22,6 +23,7 @@ import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
@@ -169,6 +171,12 @@ public class MainActivity extends Activity
             { 
                 web_view_.setWebViewClient(new WebViewClient()
                 {
+                    @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request)
+                    {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, request.getUrl());
+                        view.getContext().startActivity(intent);
+                        return true;
+                    }
                     @Override public void onPageFinished(WebView web_view, String url)
                     {
                         super.onPageFinished(web_view, url);
@@ -261,7 +269,7 @@ public class MainActivity extends Activity
         String assetValue;
         try
         {
-            InputStream stream = getAssets().open("assets/" + key);
+            InputStream stream = getAssets().open(key);
             int size = stream.available();
             byte[] buffer = new byte[size];
             stream.read(buffer);
@@ -405,13 +413,20 @@ public class MainActivity extends Activity
                 .setAudioAttributes(attributes)
                 .setMaxStreams(tokens.size())
                 .build();
-            player_.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener()
+            Runnable after_load = new Runnable()
             {
                 int index = 0;
-                public void onLoadComplete(SoundPool sp, int sid, int status)
+                public void run()
                 {
                     if (++index == tokens.size())
                         callback.run();
+                }
+            };
+            player_.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener()
+            {
+                public void onLoadComplete(SoundPool sp, int sid, int status)
+                {
+                    after_load.run();
                 }
             });
             int index = 0;
@@ -419,11 +434,12 @@ public class MainActivity extends Activity
             {
                 try
                 {
-                    AssetFileDescriptor descriptor = getAssets().openFd("assets/" + token + ".wav");
+                    AssetFileDescriptor descriptor = getAssets().openFd("wave/" + token + ".wav");
                     tracks_[index] = player_.load(descriptor, 1);
                 }
                 catch (IOException e)
                 {
+                    after_load.run();
                     tracks_[index] = -1;
                 }
                 ++index;

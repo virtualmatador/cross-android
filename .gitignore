@@ -3,6 +3,10 @@
 /bin/
 /lib/
 /build/
+/res/mipmap-mdpi/
+/res/mipmap-hdpi/
+/res/mipmap-xhdpi/
+/res/mipmap-xxhdpi/
+/res/mipmap-xxxhdpi/
 /classes.dex
 /AndroidManifest.xml
-/src/java/com/shaidin/cross/R.java

@@ -2,15 +2,17 @@ include ../../manifest.txt
 sdk_tools_dir := $(shell ls -d ~/Android/Sdk/build-tools/* | tail -n 1)
 sdk_platforms_dir := $(shell ls -d ~/Android/Sdk/platforms/* | tail -n 1)
 jre_dir := ~/android-studio/jre
-java_sources := $(wildcard src/java/com/shaidin/cross/*.java)
-resources := $(shell find -L res/ -type f)
-ifeq ($(wildcard src/java/com/shaidin/cross/R.java),)
-	java_sources := $(java_sources) src/java/com/shaidin/cross/R.java
-endif
+R_JAVA := build/R/com/shaidin/cross/R.java
+java_sources := $(wildcard src/java/com/shaidin/cross/*.java) $(R_JAVA)
+assets_list := $(shell find -L ../../assets/ -type f | sort)
+mipmap-mdpi-size := 48x48
+mipmap-hdpi-size := 72x72
+mipmap-xhdpi-size := 96x96
+mipmap-xxhdpi-size := 144x144
+mipmap-xxxhdpi-size := 192x192
+icon_dirs := mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi
+resources_list := $(foreach icon_dir, $(icon_dirs), res/$(icon_dir)/ic_launcher.png res/$(icon_dir)/ic_launcher_round.png) $(layout_file) res/layout/main.xml
 
-ifeq ($(MAKECMDGOALS),)
-	native_libs := lib/arm64-v8a/libnative-lib.so lib/armeabi-v7a/libnative-lib.so lib/x86/libnative-lib.so lib/x86_64/libnative-lib.so
-endif
 ndk_path := $(shell ls -d ~/Android/Sdk/ndk/* | tail -n 1)
 CC := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang
 CXX := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++
@@ -24,31 +26,31 @@ lib_version := $(shell ls -d $(ndk_path)/platforms/* | tail -n 1 | sed 's/.*\/an
 core_objects := $(patsubst ../core/src/%.cpp, %.o, $(wildcard ../core/src/*.cpp))
 main_objects := $(patsubst ../../src/%.cpp, %.o, $(wildcard ../../src/*.cpp))
 bridge_object := bridge-lib.o
-assets_list := $(shell (find -L ../../assets/ -type f && find -L ../../html/ -type f) | sort)
-
-.PHONY: run clean
+native_libs := lib/arm64-v8a/libnative-lib.so lib/armeabi-v7a/libnative-lib.so lib/x86/libnative-lib.so lib/x86_64/libnative-lib.so
 
 $(shell mkdir -p build)
 $(shell echo $(assets_list) > build/assets-list-tmp)
 $(shell if ! test -f build/assets-list; then touch build/assets-list; fi)
 $(shell if diff build/assets-list-tmp build/assets-list > /dev/null; then rm -f build/assets-list-tmp; else	mv build/assets-list-tmp build/assets-list; fi)
 
-bin/$(cross_identifier).apk: src/java/com/shaidin/cross/R.java classes.dex AndroidManifest.xml build/assets-list $(native_libs) $(assets_list)
+.PHONY: run clean
+
+bin/$(cross_identifier).apk: classes.dex AndroidManifest.xml build/assets-list $(native_libs) $(assets_list) $(resources_list)
 	mkdir -p bin
-	$(sdk_tools_dir)/aapt package -f -m -F bin/unaligned.apk -M AndroidManifest.xml -S res -A ../../assets/ -A ../../html/ -I $(sdk_platforms_dir)/android.jar --min-sdk-version 14 --target-sdk-version $(lib_version)
+	$(sdk_tools_dir)/aapt package -f -m -F bin/unaligned.apk -M AndroidManifest.xml -S res -A ../../assets/ -I $(sdk_platforms_dir)/android.jar --min-sdk-version 14 --target-sdk-version $(lib_version)
 	$(sdk_tools_dir)/aapt add bin/unaligned.apk classes.dex
 	for native_lib in $(native_libs);do $(sdk_tools_dir)/aapt add bin/unaligned.apk $${native_lib}; done
 	$(sdk_tools_dir)/zipalign -f 4 bin/unaligned.apk bin/aligned.apk
 	rm -f bin/unaligned.apk
-	export PATH="$$PATH:$(jre_dir)/bin" && $(sdk_tools_dir)/apksigner sign --ks ~/.android/debug.keystore --ks-pass pass:android bin/aligned.apk
+	export PATH="$$PATH:$(jre_dir)/bin" && $(sdk_tools_dir)/apksigner sign --ks ../../../secure/snake/apk.keystore --ks-pass pass:shaidin bin/aligned.apk
 	mv bin/aligned.apk $@
 
 AndroidManifest.xml: AndroidManifest.xml.in ../../manifest.txt
 	cp $< $@
 	xmlstarlet ed -L \
-	-u "/manifest/application/@android:label" -v $(word 3,$(subst ., ,$(cross_identifier))) \
-	-u "/manifest/application/@android:versionCode" -v $(cross_release_number) \
-	-u "/manifest/application/@android:versionName" -v $(cross_version) \
+	-u "/manifest/application/@android:label" -v $(cross_target) \
+	-u "/manifest/@android:versionCode" -v $(cross_release) \
+	-u "/manifest/@android:versionName" -v $(cross_version) \
 	$@
 	if test $(cross_internet) = true; then \
 		xmlstarlet ed -L \
@@ -67,8 +69,17 @@ obj/: $(java_sources) AndroidManifest.xml
 	rm -rf $@
 	mv _$@ $@
 
-src/java/com/shaidin/cross/R.java: AndroidManifest.xml $(resources)
-	$(sdk_tools_dir)/aapt package -f -m -J src/java -M  $< -S res -I $(sdk_platforms_dir)/android.jar
+$(R_JAVA): AndroidManifest.xml $(resources_list)
+	mkdir -p build/R
+	$(sdk_tools_dir)/aapt package -f -m -J build/R/ -M  $< -S res -I $(sdk_platforms_dir)/android.jar
+
+res/%/ic_launcher.png: ../../assets/icon.png
+	mkdir -p $(shell dirname $@)
+	convert $^ -resize $($(word 2,$(subst /, ,$@))-size) $@
+
+res/%/ic_launcher_round.png: ../../assets/icon_round.png
+	mkdir -p $(shell dirname $@)
+	convert $^ -resize $($(word 2,$(subst /, ,$@))-size) $@
 
 define NATIVE_COMPILE_RULE
 $(1)$(2)$(3)$(subst $() \,,$(shell $(CXX) --sysroot=$(sysroot) --target=$(abi_$(2))$(lib_version) -std=c++14 -MM $(4)$(5:.o=.cpp)))
