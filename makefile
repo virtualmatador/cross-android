@@ -1,7 +1,6 @@
 include ../../manifest.txt
 sdk_tools_dir := $(shell ls -d ~/Android/Sdk/build-tools/* | tail -n 1)
 sdk_platforms_dir := $(shell ls -d ~/Android/Sdk/platforms/* | tail -n 1)
-jre_dir := ~/android-studio/jre
 R_JAVA := build/R/com/shaidin/cross/R.java
 java_sources := $(wildcard src/java/com/shaidin/cross/*.java) $(R_JAVA)
 assets_list := $(shell find -L ../../assets/ -type f | sort)
@@ -13,7 +12,7 @@ mipmap-xxxhdpi-size := 192x192
 icon_dirs := mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi
 resources_list := $(foreach icon_dir, $(icon_dirs), res/$(icon_dir)/ic_launcher.png res/$(icon_dir)/ic_launcher_round.png) $(layout_file) res/layout/main.xml
 
-ndk_path := $(shell ls -d ~/Android/Sdk/ndk/* | tail -n 1)
+ndk_path := $(shell ls -d ~/Android/Sdk/ndk-bundle | tail -n 1)
 CC := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang
 CXX := $(ndk_path)/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++
 CPPFLAGS := -o2
@@ -42,7 +41,7 @@ bin/$(cross_identifier).apk: classes.dex AndroidManifest.xml build/assets-list $
 	for native_lib in $(native_libs);do $(sdk_tools_dir)/aapt add bin/unaligned.apk $${native_lib}; done
 	$(sdk_tools_dir)/zipalign -f 4 bin/unaligned.apk bin/aligned.apk
 	rm -f bin/unaligned.apk
-	export PATH="$$PATH:$(jre_dir)/bin" && $(sdk_tools_dir)/apksigner sign --ks ../../../secure/snake/apk.keystore --ks-pass pass:shaidin bin/aligned.apk
+	$(sdk_tools_dir)/apksigner sign --ks ../../../secure/snake/apk.keystore --ks-pass pass:shaidin bin/aligned.apk
 	mv bin/aligned.apk $@
 
 AndroidManifest.xml: AndroidManifest.xml.in ../../manifest.txt
@@ -61,11 +60,11 @@ AndroidManifest.xml: AndroidManifest.xml.in ../../manifest.txt
 	;fi
 
 classes.dex: obj/
-	cd obj && export PATH="$$PATH:$(jre_dir)/bin" && $(sdk_tools_dir)/dx --dex --output=../$@ .
+	cd obj && $(sdk_tools_dir)/dx --dex --output=../$@ .
 
 obj/: $(java_sources) AndroidManifest.xml
 	mkdir -p _$@
-	$(jre_dir)/bin/javac -d _$@ -classpath $(sdk_platforms_dir)/android.jar $(java_sources)
+	javac -encoding utf8 -d _$@ -classpath $(sdk_platforms_dir)/android.jar $(java_sources)
 	rm -rf $@
 	mv _$@ $@
 
