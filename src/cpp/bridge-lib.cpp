@@ -68,14 +68,12 @@ __uint32_t* bridge::GetPixels()
 {
     j_pixels_ = (jintArray)env_->GetObjectField(tme_, env_->GetFieldID(env_->GetObjectClass(tme_), "pixels_", "[I"));
     return (__uint32_t*)env_->GetIntArrayElements(j_pixels_, nullptr);
-
 }
 
 void bridge::ReleasePixels(__uint32_t* const pixels)
 {
     env_->ReleaseIntArrayElements(j_pixels_, (__int32_t*)pixels, JNI_COMMIT);
     env_->DeleteLocalRef(j_pixels_);
-
 }
 
 void bridge::RefreshImageView()

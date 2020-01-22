@@ -48,6 +48,7 @@ AndroidManifest.xml: AndroidManifest.xml.in ../../manifest.txt
 	cp $< $@
 	xmlstarlet ed -L \
 	-u "/manifest/application/@android:label" -v $(cross_target) \
+	-u "/manifest/@package" -v $(cross_identifier) \
 	-u "/manifest/@android:versionCode" -v $(cross_release) \
 	-u "/manifest/@android:versionName" -v $(cross_version) \
 	$@
@@ -68,9 +69,10 @@ obj/: $(java_sources) AndroidManifest.xml
 	rm -rf $@
 	mv _$@ $@
 
-$(R_JAVA): AndroidManifest.xml $(resources_list)
+$(R_JAVA): AndroidManifest.xml.in $(resources_list)
 	mkdir -p build/R
-	$(sdk_tools_dir)/aapt package -f -m -J build/R/ -M  $< -S res -I $(sdk_platforms_dir)/android.jar
+	cp -f AndroidManifest.xml.in build/R/AndroidManifest.xml
+	$(sdk_tools_dir)/aapt package -f -m -J build/R/ -M build/R/AndroidManifest.xml -S res -I $(sdk_platforms_dir)/android.jar
 
 res/%/ic_launcher.png: ../../assets/icon.png
 	mkdir -p $(shell dirname $@)
@@ -102,7 +104,7 @@ run:
 	if test "$(target_device)" = ""; then exit 1;fi
 	~/Android/Sdk/platform-tools/adb -s $(target_device) install -r bin/$(cross_identifier).apk
 	~/Android/Sdk/platform-tools/adb -s $(target_device) logcat -c
-	~/Android/Sdk/platform-tools/adb -s $(target_device) shell am start -n com.shaidin.cross/.MainActivity
+	~/Android/Sdk/platform-tools/adb -s $(target_device) shell am start -n $(cross_identifier)/com.shaidin.cross.MainActivity
 	~/Android/Sdk/platform-tools/adb -s $(target_device) logcat | grep shaidin.log
 
 clean:
