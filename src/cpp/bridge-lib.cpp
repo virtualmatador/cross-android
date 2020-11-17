@@ -48,7 +48,7 @@ void bridge::NeedRestart()
     env_->CallVoidMethod(me_, need_restart_);
 }
 
-void bridge::LoadWebView(const __int32_t sender, const __int32_t view_info, const char* html, const char* waves)
+void bridge::LoadWebView(const std::int32_t sender, const std::int32_t view_info, const char* html, const char* waves)
 {
     jstring jHtml = env_->NewStringUTF(html);
     jstring jWaves = env_->NewStringUTF(waves);
@@ -57,22 +57,22 @@ void bridge::LoadWebView(const __int32_t sender, const __int32_t view_info, cons
     env_->DeleteLocalRef(jWaves);
 }
 
-void bridge::LoadImageView(const __int32_t sender, const __int32_t view_info, const __int32_t image_width, const char* waves)
+void bridge::LoadImageView(const std::int32_t sender, const std::int32_t view_info, const std::int32_t image_width, const char* waves)
 {
     jstring jWaves = env_->NewStringUTF(waves);
     env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width, jWaves);
     env_->DeleteLocalRef(jWaves);
 }
 
-__uint32_t* bridge::GetPixels()
+std::uint32_t* bridge::GetPixels()
 {
     j_pixels_ = (jintArray)env_->GetObjectField(tme_, env_->GetFieldID(env_->GetObjectClass(tme_), "pixels_", "[I"));
-    return (__uint32_t*)env_->GetIntArrayElements(j_pixels_, nullptr);
+    return (std::uint32_t*)env_->GetIntArrayElements(j_pixels_, nullptr);
 }
 
-void bridge::ReleasePixels(__uint32_t* const pixels)
+void bridge::ReleasePixels(std::uint32_t* const pixels)
 {
-    env_->ReleaseIntArrayElements(j_pixels_, (__int32_t*)pixels, JNI_COMMIT);
+    env_->ReleaseIntArrayElements(j_pixels_, (std::int32_t*)pixels, JNI_COMMIT);
     env_->DeleteLocalRef(j_pixels_);
 }
 
@@ -121,7 +121,7 @@ void bridge::SetPreference(const char* key, const char* value)
     env_->DeleteLocalRef(jValue);
 }
 
-void bridge::PostThreadMessage(__int32_t receiver, const char* id, const char* command, const char* info)
+void bridge::PostThreadMessage(std::int32_t receiver, const char* id, const char* command, const char* info)
 {
     JNIEnv* env_;
     jvm_->AttachCurrentThread(&env_, nullptr);
@@ -144,7 +144,7 @@ void bridge::AddParam(const char *key, const char *value)
     env_->DeleteLocalRef(jValue);
 }
 
-void bridge::PostHttp(const __int32_t sender, const char* id, const char* command, const char *url)
+void bridge::PostHttp(const std::int32_t sender, const char* id, const char* command, const char *url)
 {
     jstring jId = env_->NewStringUTF(id);
     jstring jCommand = env_->NewStringUTF(command);
@@ -155,7 +155,7 @@ void bridge::PostHttp(const __int32_t sender, const char* id, const char* comman
     env_->DeleteLocalRef(jUrl);
 }
 
-void bridge::PlayAudio(const __int32_t index)
+void bridge::PlayAudio(const std::int32_t index)
 {
     env_->CallVoidMethod(me_, play_audio_, index);
 }
