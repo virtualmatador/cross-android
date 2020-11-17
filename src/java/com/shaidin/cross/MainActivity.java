@@ -27,7 +27,6 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.ImageView;
-//import android.util.Log;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.net.HttpURLConnection;
@@ -55,7 +54,7 @@ public class MainActivity extends Activity
     SoundPool player_ = null;;
     int[] tracks_;
 
-    static {System.loadLibrary("native-lib");}
+    static {System.loadLibrary("native");}
     public native void Create();
     public native void Destroy();
     public native void Start();
