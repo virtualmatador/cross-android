@@ -12,21 +12,19 @@ project(${project_name} VERSION ${cross_version}.${cross_release})
 
 include(ExternalProject)
 
-file(GLOB sdk_tools_dir "/usr/local/dev/Android/Sdk/build-tools/*")
+file(GLOB sdk_tools_dir "/usr/local/dev/android-sdk/build-tools/*")
 list(SORT sdk_tools_dir)
 list(GET sdk_tools_dir -1 sdk_tools_dir)
 
-file(GLOB sdk_platform_dir "/usr/local/dev/Android/Sdk/platforms/*")
+file(GLOB sdk_platform_dir "/usr/local/dev/android-sdk/platforms/*")
 list(SORT sdk_platform_dir)
 list(GET sdk_platform_dir -1 sdk_platform_dir)
 
-file(GLOB ndk_tools_dir "/usr/local/dev/Android/Sdk/ndk/*")
+file(GLOB ndk_tools_dir "/usr/local/dev/android-sdk/ndk/*")
 list(SORT ndk_tools_dir)
 list(GET ndk_tools_dir -1 ndk_tools_dir)
 
 string(REGEX MATCH "[0123456789]+$" sdk_version ${sdk_platform_dir})
-
-set(jre_bin "/usr/local/dev/android-studio/jre/bin")
 
 file(GLOB_RECURSE asset_list "../../assets/*")
 list(SORT asset_list)
@@ -84,13 +82,13 @@ add_custom_command(OUTPUT "${cross_identifier}.apk"
 	COMMAND "${sdk_tools_dir}/aapt" add "unaligned.apk" "classes.dex" ${native_dep}
 	COMMAND "${sdk_tools_dir}/zipalign" -f 4 "unaligned.apk" "${cross_identifier}.apk"
     COMMAND ${CMAKE_COMMAND} -E remove -f "unaligned.apk"
-	COMMAND export PATH=${jre_bin}:\${PATH} && "${sdk_tools_dir}/apksigner" sign --ks "/etc/apk-keystore/${CMAKE_PROJECT_NAME}/apk.keystore" --ks-pass file:"/etc/apk-keystore/${CMAKE_PROJECT_NAME}/pass" "${cross_identifier}.apk"
+	COMMAND "${sdk_tools_dir}/apksigner" sign --ks "/etc/apk-keystore/${CMAKE_PROJECT_NAME}/apk.keystore" --ks-pass file:"/etc/apk-keystore/${CMAKE_PROJECT_NAME}/pass" "${cross_identifier}.apk"
 )
 add_custom_command(OUTPUT classes.dex
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/MainActivity.java" "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/R.java"
     COMMAND ${CMAKE_COMMAND} -E make_directory "java/com/shaidin/cross"
-    COMMAND "${jre_bin}/javac" -encoding utf8 -d "java" -classpath "${sdk_platform_dir}/android.jar" "java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
-    COMMAND export PATH=${jre_bin}:\${PATH} && cd "java" && "${sdk_tools_dir}/dx" --dex --output=../classes.dex .
+    COMMAND javac --release 8 -encoding utf8 -d "java" -classpath "${sdk_platform_dir}/android.jar" "java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
+    COMMAND cd "java" && "${sdk_tools_dir}/dx" --dex --output=../classes.dex .
 )
 configure_file("src/java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/MainActivity.java" COPYONLY)
 add_custom_command(OUTPUT "java/com/shaidin/cross/R.java"
