@@ -8,7 +8,7 @@ foreach(key_value ${manifest})
 endforeach()
 
 string(TOLOWER ${cross_target} project_name)
-project(${project_name} VERSION ${cross_version}.${cross_release})
+project(${project_name} LANGUAGES NONE VERSION ${cross_version}.${cross_release})
 
 include(ExternalProject)
 
