@@ -64,7 +64,7 @@ foreach(icon_dir ${icon_dirs})
     add_custom_command(OUTPUT "res/${icon_dir}/ic_launcher.png"
         DEPENDS "../../icon.svg"
         COMMAND ${CMAKE_COMMAND} -E make_directory "res/${icon_dir}"
-        COMMAND inkscape -e "res/${icon_dir}/ic_launcher.png" -w ${RESOLUTION} -h ${RESOLUTION} "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
+        COMMAND inkscape -o "res/${icon_dir}/ic_launcher.png" -w ${RESOLUTION} -h ${RESOLUTION} "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
     )
 endforeach()
 list(APPEND resources_list "${CMAKE_CURRENT_BINARY_DIR}/res/layout/main.xml")
@@ -72,7 +72,7 @@ list(APPEND resources_list "${CMAKE_CURRENT_BINARY_DIR}/res/layout/main.xml")
 add_custom_target(app_png ALL DEPENDS "app.png")
 add_custom_command(OUTPUT "app.png"
     DEPENDS "../../icon.svg"
-    COMMAND inkscape -e "app.png" -w 512 -h 512 "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
+    COMMAND inkscape -o "app.png" -w 512 -h 512 "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
 )
 
 add_custom_target("${cross_identifier}" ALL DEPENDS "${cross_identifier}.apk")
