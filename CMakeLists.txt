@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 3.13)
 
-file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/../../manifest.txt" manifest)
-foreach(key_value ${manifest})
-    string(REGEX MATCH "^[^=]+" key ${key_value})
-    string(REPLACE "${key}=" "" value ${key_value})
-    set(${key} "${value}")
-endforeach()
+include("${CMAKE_CURRENT_SOURCE_DIR}/../core/manifest.cmake")
 
 string(TOLOWER ${cross_target} project_name)
-project(${project_name} LANGUAGES NONE VERSION ${cross_version}.${cross_release})
+project(${project_name} LANGUAGES NONE VERSION ${cross_version})
 
 include(ExternalProject)
 
@@ -100,8 +95,8 @@ configure_file("AndroidManifest.xml.in" "java/AndroidManifest.xml" COPYONLY)
 list(APPEND xml_commands
 	-u /manifest/application/@android:label -v ${cross_target}
 	-u /manifest/@package -v ${cross_identifier}
-	-u /manifest/@android:versionCode -v ${cross_release}
-	-u /manifest/@android:versionName -v ${cross_version}
+	-u /manifest/@android:versionCode -v ${CMAKE_PROJECT_VERSION_PATCH}
+	-u /manifest/@android:versionName -v ${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}
 )
 if(cross_internet STREQUAL "true")
     list(APPEND xml_commands
