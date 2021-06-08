@@ -2,8 +2,7 @@ cmake_minimum_required(VERSION 3.13)
 
 include("${CMAKE_CURRENT_SOURCE_DIR}/../core/manifest.cmake")
 
-string(TOLOWER ${cross_target} project_name)
-project(${project_name} LANGUAGES NONE VERSION ${cross_version})
+project(${cross_target} LANGUAGES NONE VERSION ${cross_version})
 
 include(ExternalProject)
 
@@ -77,7 +76,7 @@ add_custom_command(OUTPUT "${cross_identifier}.apk"
 	COMMAND "${sdk_tools_dir}/aapt" add "unaligned.apk" "classes.dex" ${native_dep}
 	COMMAND "${sdk_tools_dir}/zipalign" -f 4 "unaligned.apk" "${cross_identifier}.apk"
     COMMAND ${CMAKE_COMMAND} -E remove -f "unaligned.apk"
-	COMMAND "${sdk_tools_dir}/apksigner" sign --ks "/etc/deploy/apk-keys/${CMAKE_PROJECT_NAME}/keystore" --ks-pass file:"/etc/deploy/apk-keys/${CMAKE_PROJECT_NAME}/pass" "${cross_identifier}.apk"
+	COMMAND "${sdk_tools_dir}/apksigner" sign --ks "${CROSS_SIGNKEY_PATH}/keystore" --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" "${cross_identifier}.apk"
 )
 add_custom_command(OUTPUT classes.dex
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/MainActivity.java" "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/R.java"
