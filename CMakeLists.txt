@@ -113,3 +113,7 @@ add_custom_command(OUTPUT "assets.txt"
     COMMAND ${CMAKE_COMMAND} -E compare_files assets.txt.tmp assets.txt || ${CMAKE_COMMAND} -E echo ${asset_list} > assets.txt
 )
 configure_file("res/layout/main.xml" "res/layout/main.xml" COPYONLY)
+
+add_custom_target("package-name" ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "${cross_identifier}" > "package-name.txt"
+)
