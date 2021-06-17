@@ -55,6 +55,9 @@ public class MainActivity extends Activity
     int[] tracks_;
 
     static {System.loadLibrary("native");}
+    public native void Setup();
+    public native void Begin();
+    public native void End();
     public native void Create();
     public native void Destroy();
     public native void Start();
@@ -95,10 +98,13 @@ public class MainActivity extends Activity
         });
         close_button_ = findViewById(R.id.imageButton);
         http_params_ = new HashMap<String, String>();
+        Setup();
+        Begin();
     }
     @Override
     protected void onDestroy()
     {
+        End();
         super.onDestroy();
     }
 

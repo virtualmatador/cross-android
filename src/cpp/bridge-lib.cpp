@@ -34,13 +34,12 @@ jintArray j_pixels_;
 jint JNI_OnLoad(JavaVM *vm, void *reserved)
 {
     jvm_ = vm;
-    interface::Begin();
     return JNI_VERSION_1_6;
 }
 
 void JNI_OnUnload(JavaVM *vm, void *reserved)
 {
-    interface::End();
+    env_->DeleteGlobalRef(tme_);
 }
 
 void bridge::NeedRestart()
@@ -165,7 +164,7 @@ void bridge::Exit()
     env_->CallVoidMethod(me_, exit_);
 }
 
-extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNIEnv *env, jobject me)
+extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Setup(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
@@ -196,6 +195,26 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNI
             "(I)V");
     exit_= env_->GetMethodID(env_->GetObjectClass(me_), "Exit",
             "()V");
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Begin(JNIEnv *env, jobject me)
+{
+    env_ = env;
+    me_ = me;
+    interface::Begin();
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_End(JNIEnv *env, jobject me)
+{
+    env_ = env;
+    me_ = me;
+    interface::End();
+}
+
+extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNIEnv *env, jobject me)
+{
+    env_ = env;
+    me_ = me;
     interface::Create();
 }
 
@@ -204,7 +223,6 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Destroy(JN
     env_ = env;
     me_ = me;
     interface::Destroy();
-    env_->DeleteGlobalRef(tme_);
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Start(JNIEnv *env, jobject me)
