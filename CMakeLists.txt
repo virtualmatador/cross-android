@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.13)
 
-include("${CMAKE_CURRENT_SOURCE_DIR}/../core/manifest.cmake")
+include("${CMAKE_CURRENT_SOURCE_DIR}/extern/core/manifest.cmake")
 
 project(${cross_target} LANGUAGES NONE VERSION ${cross_version})
 

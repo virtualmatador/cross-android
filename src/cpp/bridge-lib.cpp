@@ -6,8 +6,8 @@
 //  Copyright © 2019 Shaidin. All rights reserved.
 //
 
-#include "../../../core/src/bridge.h"
-#include "../../../core/src/interface.h"
+#include "../../extern/core/src/bridge.h"
+#include "../../extern/core/src/interface.h"
 
 #include <jni.h>
 
