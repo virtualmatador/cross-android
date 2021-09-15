@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
+project(${ANDROID_ABI})
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_library("${ANDROID_ABI}" SHARED)
 target_include_directories("${ANDROID_ABI}" PRIVATE "../extern/core/src")

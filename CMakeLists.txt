@@ -6,6 +6,10 @@ project(${cross_target} LANGUAGES NONE VERSION ${cross_version})
 
 include(ExternalProject)
 
+file(GLOB bundle_tool "/usr/local/dev/android-sdk/bundletool-all-*")
+list(SORT bundle_tool)
+list(GET bundle_tool -1 bundle_tool)
+
 file(GLOB sdk_tools_dir "/usr/local/dev/android-sdk/build-tools/*")
 list(SORT sdk_tools_dir)
 list(GET sdk_tools_dir -1 sdk_tools_dir)
@@ -69,33 +73,51 @@ add_custom_command(OUTPUT "app.png"
     COMMAND inkscape -o "app.png" -w 512 -h 512 "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
 )
 
-add_custom_target("${cross_identifier}" ALL DEPENDS "${cross_identifier}.apk")
-add_custom_command(OUTPUT "${cross_identifier}.apk"
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/classes.dex ${CMAKE_CURRENT_BINARY_DIR}/AndroidManifest.xml ${CMAKE_CURRENT_BINARY_DIR}/assets.txt ${asset_list} ${resources_list} ${native_dep}
-	COMMAND "${sdk_tools_dir}/aapt" package -f -m -F "unaligned.apk" -M "AndroidManifest.xml" -S "res" -A "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/" -I "${sdk_platform_dir}/android.jar" --min-sdk-version 14 --target-sdk-version ${sdk_version}
-	COMMAND "${sdk_tools_dir}/aapt" add "unaligned.apk" "classes.dex" ${native_dep}
-	COMMAND "${sdk_tools_dir}/zipalign" -f 4 "unaligned.apk" "${cross_identifier}.apk"
-    COMMAND ${CMAKE_COMMAND} -E remove -f "unaligned.apk"
-	COMMAND "${sdk_tools_dir}/apksigner" sign --ks "${CROSS_SIGNKEY_PATH}/keystore" --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" "${cross_identifier}.apk"
+add_custom_target("${cross_identifier}.aab" ALL DEPENDS "${cross_identifier}.aab")
+add_custom_command(OUTPUT "${cross_identifier}.aab"
+    DEPENDS
+        ${CMAKE_CURRENT_BINARY_DIR}/res-linked.apk
+        ${CMAKE_CURRENT_BINARY_DIR}/dex/classes.dex
+        ${native_dep}
+        ${asset_list}
+        ${CMAKE_CURRENT_BINARY_DIR}/assets.txt
+    COMMAND ${CMAKE_COMMAND} -E make_directory "obj/manifest"
+    COMMAND cd obj && jar xf "../res-linked.apk" resources.pb AndroidManifest.xml res
+    COMMAND ${CMAKE_COMMAND} -E rename "obj/AndroidManifest.xml" "obj/manifest/AndroidManifest.xml"
+    COMMAND cd obj && jar cMf ../base.zip ../dex ../lib "manifest" "res" "resources.pb" "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
+    COMMAND ${CMAKE_COMMAND} -E remove "output.aab"
+    COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="output.aab"
+    COMMAND jarsigner -keystore "${CROSS_SIGNKEY_PATH}/keystore" -storepass `cat "${CROSS_SIGNKEY_PATH}/pass"` -signedjar "${cross_identifier}.aab" "output.aab" apk-key
 )
-add_custom_command(OUTPUT classes.dex
-    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/MainActivity.java" "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/R.java"
-    COMMAND ${CMAKE_COMMAND} -E make_directory "java/com/shaidin/cross"
-    COMMAND javac --release 8 -encoding utf8 -d "java" -classpath "${sdk_platform_dir}/android.jar" "java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
-    COMMAND cd "java" && "${sdk_tools_dir}/dx" --dex --output=../classes.dex .
+add_custom_target("${cross_identifier}.apk" ALL DEPENDS "${cross_identifier}.apks")
+add_custom_command(OUTPUT "${cross_identifier}.apks"
+    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
+    COMMAND java -jar "${bundle_tool}" build-apks --ks="${CROSS_SIGNKEY_PATH}/keystore" --ks-key-alias=apk-key --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" --bundle="${cross_identifier}.aab" --output="${cross_identifier}.apks" --mode=universal
 )
-configure_file("src/java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/MainActivity.java" COPYONLY)
-add_custom_command(OUTPUT "java/com/shaidin/cross/R.java"
-    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/java/AndroidManifest.xml" ${resources_list}
-    COMMAND ${CMAKE_COMMAND} -E make_directory "java/com/shaidin/cross"
-	COMMAND "${sdk_tools_dir}/aapt" package -f -m -J "java" -M "java/AndroidManifest.xml" -S "res" -I "${sdk_platform_dir}/android.jar"
+add_custom_command(OUTPUT "res-linked.apk" "java/com/shaidin/cross/R.java"
+    DEPENDS
+        ${resources_list}
+        "${CMAKE_CURRENT_BINARY_DIR}/resources.txt"
+        "${CMAKE_CURRENT_BINARY_DIR}/AndroidManifest.xml"
+    COMMAND "${sdk_tools_dir}/aapt2" compile --dir "res" -o "res.zip"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "java"
+    COMMAND "${sdk_tools_dir}/aapt2" link --proto-format -o "res-linked.apk" -I "${sdk_platform_dir}/android.jar" --java "java/" --custom-package "com.shaidin.cross" --manifest "AndroidManifest.xml" "res.zip" --auto-add-overlay
 )
-configure_file("AndroidManifest.xml.in" "java/AndroidManifest.xml" COPYONLY)
+add_custom_command(OUTPUT "dex/classes.dex"
+    DEPENDS
+        "src/java/com/shaidin/cross/MainActivity.java"
+        "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/R.java"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "java-o"
+    COMMAND javac --release 8 -encoding utf8 -d "java-o" -classpath "${sdk_platform_dir}/android.jar" "${CMAKE_CURRENT_SOURCE_DIR}/src/java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
+    COMMAND ${CMAKE_COMMAND} -E make_directory "dex"
+    COMMAND "${sdk_tools_dir}/d8" --output "dex" --classpath "java-o" --lib "${sdk_platform_dir}/android.jar" "java-o/com/shaidin/cross/*.class"
+)
 list(APPEND xml_commands
-	-u /manifest/application/@android:label -v ${cross_target}
-	-u /manifest/@package -v ${cross_identifier}
+    -u /manifest/@package -v ${cross_identifier}
 	-u /manifest/@android:versionCode -v ${CMAKE_PROJECT_VERSION_PATCH}
 	-u /manifest/@android:versionName -v ${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}
+	-u /manifest/application/@android:label -v ${cross_target}
+    -u /manifest/uses-sdk/@android:targetSdkVersion -v ${sdk_version}
 )
 if(cross_internet STREQUAL "true")
     list(APPEND xml_commands
@@ -104,16 +126,21 @@ if(cross_internet STREQUAL "true")
         -r /manifest/uses-permission-temp -v uses-permission
     )
 endif()
-add_custom_command(OUTPUT AndroidManifest.xml
-    DEPENDS AndroidManifest.xml.in ../../manifest.txt
-    COMMAND xmlstarlet edit ${xml_commands} "${CMAKE_CURRENT_SOURCE_DIR}/AndroidManifest.xml.in" > AndroidManifest.xml
+add_custom_command(OUTPUT "AndroidManifest.xml"
+    DEPENDS
+        "AndroidManifest.xml.in"
+        "../../manifest.txt"
+        COMMAND xmlstarlet edit ${xml_commands} "${CMAKE_CURRENT_SOURCE_DIR}/AndroidManifest.xml.in" > "AndroidManifest.xml"
 )
 add_custom_command(OUTPUT "assets.txt"
     COMMAND ${CMAKE_COMMAND} -E echo ${asset_list} > assets.txt.tmp
     COMMAND ${CMAKE_COMMAND} -E compare_files assets.txt.tmp assets.txt || ${CMAKE_COMMAND} -E echo ${asset_list} > assets.txt
 )
+add_custom_command(OUTPUT "resources.txt"
+    COMMAND ${CMAKE_COMMAND} -E echo ${resources_list} > resources.txt.tmp
+    COMMAND ${CMAKE_COMMAND} -E compare_files resources.txt.tmp resources.txt || ${CMAKE_COMMAND} -E echo ${resources_list} > resources.txt
+)
 configure_file("res/layout/main.xml" "res/layout/main.xml" COPYONLY)
-
 add_custom_target("package-name" ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "${cross_identifier}" > "package-name.txt"
+    COMMAND ${CMAKE_COMMAND} -E echo "${cross_identifier}.aab" > "package-name.txt"
 )
