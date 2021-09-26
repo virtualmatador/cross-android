@@ -16,7 +16,6 @@ import android.content.res.AssetManager;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.media.AudioManager;
-import android.media.SoundPool;
 import android.media.AudioAttributes;
 import android.os.AsyncTask;
 import android.os.Bundle;
@@ -51,8 +50,6 @@ public class MainActivity extends Activity
     int[] pixels_;
     Bitmap bmp_;
     HashMap<String, String> http_params_ = new HashMap<String, String>();
-    SoundPool player_ = null;;
-    int[] tracks_;
 
     static {System.loadLibrary("native");}
     public native void Setup();
@@ -164,7 +161,7 @@ public class MainActivity extends Activity
         });
     }
 
-    public void LoadWebView(int sender, int view_info, String fileName, String waves)
+    public void LoadWebView(int sender, int view_info, String fileName)
     {
         pixels_ = null;
         image_view_.setVisibility(View.GONE);
@@ -192,21 +189,15 @@ public class MainActivity extends Activity
                             "{" +
                             "Handler.postMessage(Handler_Receiver, id, command, info);" +
                             "}", null);
-                        LoadAudio(waves, new Runnable()
-                        {
-                            public void run()
-                            {
-                                HandleAsync(sender, "body", "ready", "");
-                            }
-                        });
+                        HandleAsync(sender, "body", "ready", "");
                     }
                 });
-                web_view_.loadUrl("file:///android_asset/html/" + fileName + ".htm");
+                web_view_.loadUrl("file:///android_asset/" + fileName + ".htm");
             }
         });
     }
 
-    public void LoadImageView(int sender, int view_info, int image_width, String waves)
+    public void LoadImageView(int sender, int view_info, int image_width)
     {
         web_view_.setWebViewClient(null);
         web_view_.loadUrl("about:blank");
@@ -221,14 +212,8 @@ public class MainActivity extends Activity
                 bmp_ = Bitmap.createBitmap(image_width,
                     (int)(image_view_.getHeight() * scale), Bitmap.Config.ARGB_8888);
                 pixels_ = new int[bmp_.getWidth() * bmp_.getHeight()];
-                LoadAudio(waves, new Runnable()
-                {
-                    public void run()
-                    {
-                        HandleAsync(sender, "body", "ready", (int)(getResources().getDisplayMetrics().xdpi * scale) + " " +
-                            bmp_.getWidth() + " " + bmp_.getHeight() + " " + 0x02010003);
-                    }
-                });
+                HandleAsync(sender, "body", "ready", (int)(getResources().getDisplayMetrics().xdpi * scale) + " " +
+                    bmp_.getWidth() + " " + bmp_.getHeight() + " " + 0x02010003);
             }
         });
     }
@@ -299,7 +284,7 @@ public class MainActivity extends Activity
         getPreferences(Context.MODE_PRIVATE).edit().putString(key, value).commit();
     }
 
-    public void PostThreadMessage(int sender, String id, String command, String info)
+    public void AsyncMessage(int sender, String id, String command, String info)
     {
         findViewById(android.R.id.content).post(new Runnable()
         {
@@ -382,15 +367,8 @@ public class MainActivity extends Activity
         }.execute();
     }
 
-    public void PlayAudio(int index)
-    {
-        if (tracks_[index] != -1)
-            player_.play(tracks_[index], 1.0f, 1.0f, 0, 0, 1.0f);
-    }
-
     public void Exit()
     {
-        ReleasePlayer();
         finish();
     }
 
@@ -399,69 +377,4 @@ public class MainActivity extends Activity
         Escape();
     }
 
-    private void LoadAudio(String waves, Runnable callback)
-    {
-        ReleasePlayer();
-        List<String> tokens = new ArrayList<>();
-        StringTokenizer tokenizer = new StringTokenizer(waves, " ");
-        while (tokenizer.hasMoreElements()) {
-            tokens.add(tokenizer.nextToken());
-        }
-        if (tokens.size() > 0)
-        {
-            tracks_ = new int[tokens.size()];
-            AudioAttributes attributes = new AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_GAME)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                .build();
-            player_ = new SoundPool.Builder()
-                .setAudioAttributes(attributes)
-                .setMaxStreams(tokens.size())
-                .build();
-            Runnable after_load = new Runnable()
-            {
-                int index = 0;
-                public void run()
-                {
-                    if (++index == tokens.size())
-                        callback.run();
-                }
-            };
-            player_.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener()
-            {
-                public void onLoadComplete(SoundPool sp, int sid, int status)
-                {
-                    after_load.run();
-                }
-            });
-            int index = 0;
-            for (String token : tokens)
-            {
-                try
-                {
-                    AssetFileDescriptor descriptor = getAssets().openFd("wave/" + token + ".wav");
-                    tracks_[index] = player_.load(descriptor, 1);
-                }
-                catch (IOException e)
-                {
-                    after_load.run();
-                    tracks_[index] = -1;
-                }
-                ++index;
-            }
-        }
-        else
-        {
-            callback.run();
-        }
-    }
-
-    private void ReleasePlayer()
-    {
-        if (player_ != null)
-        {
-            player_.release();
-            player_ = null;
-        }
-    }
 }

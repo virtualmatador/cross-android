@@ -7,7 +7,7 @@
 //
 
 #include "../../extern/core/src/bridge.h"
-#include "../../extern/core/src/interface.h"
+#include "../../extern/core/src/cross.h"
 
 #include <jni.h>
 
@@ -23,10 +23,9 @@ jmethodID call_function_;
 jmethodID get_asset_;
 jmethodID get_preference_;
 jmethodID set_preference_;
-jmethodID post_thread_message_;
+jmethodID async_message_;
 jmethodID add_param_;
 jmethodID post_http_;
-jmethodID play_audio_;
 jmethodID exit_;
 jintArray j_pixels_;
 
@@ -47,20 +46,16 @@ void bridge::NeedRestart()
     env_->CallVoidMethod(me_, need_restart_);
 }
 
-void bridge::LoadWebView(const std::int32_t sender, const std::int32_t view_info, const char* html, const char* waves)
+void bridge::LoadWebView(const std::int32_t sender, const std::int32_t view_info, const char* html)
 {
     jstring jHtml = env_->NewStringUTF(html);
-    jstring jWaves = env_->NewStringUTF(waves);
-    env_->CallVoidMethod(me_, load_web_view_, sender, view_info, jHtml, jWaves);
+    env_->CallVoidMethod(me_, load_web_view_, sender, view_info, jHtml);
     env_->DeleteLocalRef(jHtml);
-    env_->DeleteLocalRef(jWaves);
 }
 
-void bridge::LoadImageView(const std::int32_t sender, const std::int32_t view_info, const std::int32_t image_width, const char* waves)
+void bridge::LoadImageView(const std::int32_t sender, const std::int32_t view_info, const std::int32_t image_width)
 {
-    jstring jWaves = env_->NewStringUTF(waves);
-    env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width, jWaves);
-    env_->DeleteLocalRef(jWaves);
+    env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width);
 }
 
 std::uint32_t* bridge::GetPixels()
@@ -120,14 +115,14 @@ void bridge::SetPreference(const char* key, const char* value)
     env_->DeleteLocalRef(jValue);
 }
 
-void bridge::PostThreadMessage(std::int32_t receiver, const char* id, const char* command, const char* info)
+void bridge::AsyncMessage(std::int32_t receiver, const char* id, const char* command, const char* info)
 {
     JNIEnv* env_;
     jvm_->AttachCurrentThread(&env_, nullptr);
     jstring jId = env_->NewStringUTF(id);
     jstring jCommand = env_->NewStringUTF(command);
     jstring jInfo = env_->NewStringUTF(info);
-    env_->CallVoidMethod(tme_, post_thread_message_, receiver, jId, jCommand, jInfo);
+    env_->CallVoidMethod(tme_, async_message_, receiver, jId, jCommand, jInfo);
     env_->DeleteLocalRef(jId);
     env_->DeleteLocalRef(jCommand);
     env_->DeleteLocalRef(jInfo);
@@ -154,11 +149,6 @@ void bridge::PostHttp(const std::int32_t sender, const char* id, const char* com
     env_->DeleteLocalRef(jUrl);
 }
 
-void bridge::PlayAudio(const std::int32_t index)
-{
-    env_->CallVoidMethod(me_, play_audio_, index);
-}
-
 void bridge::Exit()
 {
     env_->CallVoidMethod(me_, exit_);
@@ -172,9 +162,9 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Setup(JNIE
     need_restart_ = env_->GetMethodID(env_->GetObjectClass(me_), "NeedRestart",
             "()V");
     load_web_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadWebView",
-            "(IILjava/lang/String;Ljava/lang/String;)V");
+            "(IILjava/lang/String;)V");
     load_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadImageView",
-            "(IIILjava/lang/String;)V");
+            "(IIIL)V");
     refresh_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "RefreshImageView",
             "()V");
     call_function_ = env_->GetMethodID(env_->GetObjectClass(me_), "CallFunction",
@@ -185,14 +175,12 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Setup(JNIE
             "(Ljava/lang/String;)Ljava/lang/String;");
     set_preference_ = env_->GetMethodID(env_->GetObjectClass(me_), "SetPreference",
             "(Ljava/lang/String;Ljava/lang/String;)V");
-    post_thread_message_ = env_->GetMethodID(env_->GetObjectClass(me_), "PostThreadMessage",
+    async_message_ = env_->GetMethodID(env_->GetObjectClass(me_), "AsyncMessage",
             "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
     add_param_ = env_->GetMethodID(env_->GetObjectClass(me_), "AddParam",
             "(Ljava/lang/String;Ljava/lang/String;)V");
     post_http_ = env_->GetMethodID(env_->GetObjectClass(me_), "PostHttp",
             "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
-    play_audio_ = env_->GetMethodID(env_->GetObjectClass(me_), "PlayAudio",
-            "(I)V");
     exit_= env_->GetMethodID(env_->GetObjectClass(me_), "Exit",
             "()V");
 }
@@ -201,56 +189,56 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Begin(JNIE
 {
     env_ = env;
     me_ = me;
-    interface::Begin();
+    cross::Begin();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_End(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::End();
+    cross::End();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Create(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Create();
+    cross::Create();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Destroy(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Destroy();
+    cross::Destroy();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Start(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Start();
+    cross::Start();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Stop(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Stop();
+    cross::Stop();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Restart(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Restart();
+    cross::Restart();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Escape(JNIEnv *env, jobject me)
 {
     env_ = env;
     me_ = me;
-    interface::Escape();
+    cross::Escape();
 }
 
 extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Handle(JNIEnv *env, jobject me, const jstring id, const jstring command, const jstring info)
@@ -260,7 +248,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Handle(JNI
     const char* nId = env_->GetStringUTFChars(id, nullptr);
     const char* nCommand = env_->GetStringUTFChars(command, nullptr);
     const char* nInfo = env_->GetStringUTFChars(info, nullptr);
-    interface::Handle(nId, nCommand, nInfo);
+    cross::Handle(nId, nCommand, nInfo);
     env_->ReleaseStringUTFChars(id, nId);
     env_->ReleaseStringUTFChars(command, nCommand);
     env_->ReleaseStringUTFChars(info, nInfo);
@@ -273,7 +261,7 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_HandleAsyn
     const char* nId = env_->GetStringUTFChars(id, nullptr);
     const char* nCommand = env_->GetStringUTFChars(command, nullptr);
     const char* nInfo = env_->GetStringUTFChars(info, nullptr);
-    interface::HandleAsync(sender, nId, nCommand, nInfo);
+    cross::HandleAsync(sender, nId, nCommand, nInfo);
     env_->ReleaseStringUTFChars(id, nId);
     env_->ReleaseStringUTFChars(command, nCommand);
     env_->ReleaseStringUTFChars(info, nInfo);
