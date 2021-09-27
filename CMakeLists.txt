@@ -27,22 +27,35 @@ string(REGEX MATCH "[0123456789]+$" sdk_version ${sdk_platform_dir})
 file(GLOB_RECURSE asset_list "../../assets/*")
 list(SORT asset_list)
 
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
+    set(ndk_debug 1)
+    set(jdk_debug "true")
+else()
+    set(ndk_debug 0)
+    set(jdk_debug "false")
+endif()
 list(APPEND abis "arm64-v8a" "armeabi-v7a" "x86_64" "x86")
 foreach(ANDROID_ABI ${abis})
-    set(lib_file "lib/${ANDROID_ABI}/libnative.so")
-    ExternalProject_Add("${ANDROID_ABI}"
+    ExternalProject_Add("${ANDROID_ABI}_Project"
         CMAKE_ARGS
+            -D NDK_DEBUG=${ndk_debug}
             -D CMAKE_TOOLCHAIN_FILE=${ndk_tools_dir}/build/cmake/android.toolchain.cmake
             -D ANDROID_ABI=${ANDROID_ABI}
             -D CMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}
         SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/lib
+        BUILD_ALWAYS On
     )
+    add_library("${ANDROID_ABI}_Importer" SHARED IMPORTED)
+    set_property(TARGET "${ANDROID_ABI}_Importer"  PROPERTY IMPORTED_LOCATION "lib${ANDROID_ABI}.so")
+    add_dependencies("${ANDROID_ABI}_Importer" "${ANDROID_ABI}_Project")
+    set(lib_file "lib/${ANDROID_ABI}/libnative.so")
+    add_custom_target("${ANDROID_ABI}_Target" DEPENDS "${lib_file}")
+    add_dependencies("${ANDROID_ABI}_Target" "${ANDROID_ABI}_Importer")
     add_custom_command(OUTPUT "${lib_file}"
-        DEPENDS "${ANDROID_ABI}"
         COMMAND ${CMAKE_COMMAND} -E make_directory "lib/${ANDROID_ABI}"
         COMMAND ${CMAKE_COMMAND} -E copy "lib${ANDROID_ABI}.so" "${lib_file}"
     )
-    list(APPEND native_dep "${lib_file}")
+    list(APPEND native_dep "${ANDROID_ABI}_Target")
 endforeach()
 
 list(APPEND icon_dirs mipmap-mdpi mipmap-hdpi mipmap-xhdpi mipmap-xxhdpi mipmap-xxxhdpi)
@@ -89,10 +102,12 @@ add_custom_command(OUTPUT "${cross_identifier}.aab"
     COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="output.aab"
     COMMAND jarsigner -keystore "${CROSS_SIGNKEY_PATH}/keystore" -storepass `cat "${CROSS_SIGNKEY_PATH}/pass"` -signedjar "${cross_identifier}.aab" "output.aab" apk-key
 )
-add_custom_target("${cross_identifier}.apk" ALL DEPENDS "${cross_identifier}.apks")
-add_custom_command(OUTPUT "${cross_identifier}.apks"
+add_custom_target("${cross_identifier}.apk" ALL DEPENDS "universal.apk")
+add_custom_command(OUTPUT "universal.apk"
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
+    COMMAND ${CMAKE_COMMAND} -E remove "${cross_identifier}.apks"
     COMMAND java -jar "${bundle_tool}" build-apks --ks="${CROSS_SIGNKEY_PATH}/keystore" --ks-key-alias=apk-key --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" --bundle="${cross_identifier}.aab" --output="${cross_identifier}.apks" --mode=universal
+    COMMAND jar xf "${cross_identifier}.apks"
 )
 add_custom_command(OUTPUT "res-linked.apk" "java/com/shaidin/cross/R.java"
     DEPENDS
@@ -108,7 +123,7 @@ add_custom_command(OUTPUT "dex/classes.dex"
         "src/java/com/shaidin/cross/MainActivity.java"
         "${CMAKE_CURRENT_BINARY_DIR}/java/com/shaidin/cross/R.java"
     COMMAND ${CMAKE_COMMAND} -E make_directory "java-o"
-    COMMAND javac --release 8 -encoding utf8 -d "java-o" -classpath "${sdk_platform_dir}/android.jar" "${CMAKE_CURRENT_SOURCE_DIR}/src/java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
+    COMMAND javac --release 8 -encoding utf8 -Xlint:deprecation -d "java-o" -classpath "${sdk_platform_dir}/android.jar" "${CMAKE_CURRENT_SOURCE_DIR}/src/java/com/shaidin/cross/MainActivity.java" "java/com/shaidin/cross/R.java"
     COMMAND ${CMAKE_COMMAND} -E make_directory "dex"
     COMMAND "${sdk_tools_dir}/d8" --output "dex" --classpath "java-o" --lib "${sdk_platform_dir}/android.jar" "java-o/com/shaidin/cross/*.class"
 )
@@ -117,6 +132,7 @@ list(APPEND xml_commands
 	-u /manifest/@android:versionCode -v ${CMAKE_PROJECT_VERSION_PATCH}
 	-u /manifest/@android:versionName -v ${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}
 	-u /manifest/application/@android:label -v ${cross_target}
+    -u /manifest/application/@android:debuggable -v ${jdk_debug}
     -u /manifest/uses-sdk/@android:targetSdkVersion -v ${sdk_version}
 )
 if(cross_internet STREQUAL "true")

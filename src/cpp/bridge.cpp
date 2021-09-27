@@ -16,18 +16,16 @@ JNIEnv *env_;
 jobject me_;
 jobject tme_;
 jmethodID need_restart_;
-jmethodID load_web_view_;
-jmethodID load_image_view_;
-jmethodID refresh_image_view_;
+jmethodID load_view_;
 jmethodID call_function_;
-jmethodID get_asset_;
 jmethodID get_preference_;
 jmethodID set_preference_;
 jmethodID async_message_;
 jmethodID add_param_;
 jmethodID post_http_;
+jmethodID create_image_;
+jmethodID reset_image_;
 jmethodID exit_;
-jintArray j_pixels_;
 
 
 jint JNI_OnLoad(JavaVM *vm, void *reserved)
@@ -46,33 +44,11 @@ void bridge::NeedRestart()
     env_->CallVoidMethod(me_, need_restart_);
 }
 
-void bridge::LoadWebView(const std::int32_t sender, const std::int32_t view_info, const char* html)
+void bridge::LoadView(const std::int32_t sender, const std::int32_t view_info, const char* html)
 {
     jstring jHtml = env_->NewStringUTF(html);
-    env_->CallVoidMethod(me_, load_web_view_, sender, view_info, jHtml);
+    env_->CallVoidMethod(me_, load_view_, sender, view_info, jHtml);
     env_->DeleteLocalRef(jHtml);
-}
-
-void bridge::LoadImageView(const std::int32_t sender, const std::int32_t view_info, const std::int32_t image_width)
-{
-    env_->CallVoidMethod(me_, load_image_view_, sender, view_info, image_width);
-}
-
-std::uint32_t* bridge::GetPixels()
-{
-    j_pixels_ = (jintArray)env_->GetObjectField(tme_, env_->GetFieldID(env_->GetObjectClass(tme_), "pixels_", "[I"));
-    return (std::uint32_t*)env_->GetIntArrayElements(j_pixels_, nullptr);
-}
-
-void bridge::ReleasePixels(std::uint32_t* const pixels)
-{
-    env_->ReleaseIntArrayElements(j_pixels_, (std::int32_t*)pixels, JNI_COMMIT);
-    env_->DeleteLocalRef(j_pixels_);
-}
-
-void bridge::RefreshImageView()
-{
-    env_->CallVoidMethod(me_, refresh_image_view_);
 }
 
 void bridge::CallFunction(const char* function)
@@ -80,18 +56,6 @@ void bridge::CallFunction(const char* function)
     jstring jFunction = env_->NewStringUTF(function);
     env_->CallVoidMethod(me_, call_function_, jFunction);
     env_->DeleteLocalRef(jFunction);
-}
-
-std::string bridge::GetAsset(const char* key)
-{
-    jstring jKey = env_->NewStringUTF(key);
-    jstring jValue = (jstring)env_->CallObjectMethod(me_, get_asset_, jKey);
-    const char* szValue = env_->GetStringUTFChars(jValue, nullptr);
-    std::string value = szValue;
-    env_->ReleaseStringUTFChars(jValue, szValue);
-    env_->DeleteLocalRef(jKey);
-    env_->DeleteLocalRef(jValue);
-    return value;
 }
 
 std::string bridge::GetPreference(const char* key)
@@ -149,6 +113,22 @@ void bridge::PostHttp(const std::int32_t sender, const char* id, const char* com
     env_->DeleteLocalRef(jUrl);
 }
 
+void bridge::CreateImage(const char* id, const char* parent)
+{
+    jstring jId = env_->NewStringUTF(id);
+    jstring jParent = env_->NewStringUTF(parent);
+    env_->CallVoidMethod(me_, create_image_, jId, jParent);
+    env_->DeleteLocalRef(jId);
+    env_->DeleteLocalRef(jParent);
+}
+
+void bridge::ResetImage(const std::int32_t sender, const std::int32_t index, const char* id)
+{
+    jstring jId = env_->NewStringUTF(id);
+    env_->CallVoidMethod(me_, reset_image_, sender, index, jId);
+    env_->DeleteLocalRef(jId);
+}
+
 void bridge::Exit()
 {
     env_->CallVoidMethod(me_, exit_);
@@ -161,16 +141,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Setup(JNIE
     tme_ = env_->NewGlobalRef(me);
     need_restart_ = env_->GetMethodID(env_->GetObjectClass(me_), "NeedRestart",
             "()V");
-    load_web_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadWebView",
+    load_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadView",
             "(IILjava/lang/String;)V");
-    load_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "LoadImageView",
-            "(IIIL)V");
-    refresh_image_view_ = env_->GetMethodID(env_->GetObjectClass(me_), "RefreshImageView",
-            "()V");
     call_function_ = env_->GetMethodID(env_->GetObjectClass(me_), "CallFunction",
             "(Ljava/lang/String;)V");
-    get_asset_ = env_->GetMethodID(env_->GetObjectClass(me_), "GetAsset",
-            "(Ljava/lang/String;)Ljava/lang/String;");
     get_preference_ = env_->GetMethodID(env_->GetObjectClass(me_), "GetPreference",
             "(Ljava/lang/String;)Ljava/lang/String;");
     set_preference_ = env_->GetMethodID(env_->GetObjectClass(me_), "SetPreference",
@@ -181,6 +155,10 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_Setup(JNIE
             "(Ljava/lang/String;Ljava/lang/String;)V");
     post_http_ = env_->GetMethodID(env_->GetObjectClass(me_), "PostHttp",
             "(ILjava/lang/String;Ljava/lang/String;Ljava/lang/String;)V");
+    create_image_ = env_->GetMethodID(env_->GetObjectClass(me_), "CreateImage",
+            "(Ljava/lang/String;Ljava/lang/String;)V");
+    reset_image_ = env_->GetMethodID(env_->GetObjectClass(me_), "ResetImage",
+            "(IILjava/lang/String;)V");
     exit_= env_->GetMethodID(env_->GetObjectClass(me_), "Exit",
             "()V");
 }
@@ -265,4 +243,19 @@ extern "C" JNIEXPORT void JNICALL Java_com_shaidin_cross_MainActivity_HandleAsyn
     env_->ReleaseStringUTFChars(id, nId);
     env_->ReleaseStringUTFChars(command, nCommand);
     env_->ReleaseStringUTFChars(info, nInfo);
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL Java_com_shaidin_cross_MainActivity_FeedUri(JNIEnv *env, jobject me, const jstring uri)
+{
+    env_ = env;
+    me_ = me;
+    jbyteArray jdata = nullptr;
+    const char* nuri = env_->GetStringUTFChars(uri, nullptr);
+    cross::FeedUri(nuri, [&](const std::vector<unsigned char>& data)
+    {
+        jdata = env->NewByteArray(data.size());
+        env->SetByteArrayRegion(jdata, 0, data.size(), (jbyte*)data.data());
+    });
+    env_->ReleaseStringUTFChars(uri, nuri);
+    return jdata;
 }

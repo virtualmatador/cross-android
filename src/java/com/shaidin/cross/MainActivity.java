@@ -14,28 +14,26 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.AssetManager;
 import android.content.res.AssetFileDescriptor;
-import android.graphics.Bitmap;
-import android.media.AudioManager;
-import android.media.AudioAttributes;
+import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
-import android.widget.ImageView;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.HashMap;
@@ -44,11 +42,7 @@ import java.util.StringTokenizer;
 public class MainActivity extends Activity
 {
     WebView web_view_;
-    ImageView image_view_;
-    View close_button_;
     int sender_;
-    int[] pixels_;
-    Bitmap bmp_;
     HashMap<String, String> http_params_ = new HashMap<String, String>();
 
     static {System.loadLibrary("native");}
@@ -60,9 +54,11 @@ public class MainActivity extends Activity
     public native void Start();
     public native void Stop();
     public native void Restart();
+    public native byte[] FeedUri(String uri);
     public native void Escape();
     public native void Handle(String id, String command, String info);
-    public native void HandleAsync(int sender, String id, String command, String info);
+    public native void HandleAsync(
+        int sender, String id, String command, String info);
 
     @Override
     protected void onCreate(Bundle savedInstanceState)
@@ -71,75 +67,50 @@ public class MainActivity extends Activity
         setContentView(R.layout.main);
         web_view_ = findViewById(R.id.webView);
         web_view_.getSettings().setJavaScriptEnabled(true);
+        web_view_.getSettings().setAllowUniversalAccessFromFileURLs(true);
         web_view_.addJavascriptInterface(this, "Handler_");
-        image_view_ = findViewById(R.id.imageView);
-        image_view_.setOnTouchListener(new View.OnTouchListener()
-        {
-            @Override
-            public boolean onTouch(View view, MotionEvent motionEvent)
-            {
-                switch (motionEvent.getAction())
-                {
-                case MotionEvent.ACTION_DOWN:
-                    Handle("body", "touch-begin", motionEvent.getX() + " " + motionEvent.getY());
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    Handle("body", "touch-move", motionEvent.getX() + " " + motionEvent.getY());
-                    break;
-                case MotionEvent.ACTION_UP:
-                    Handle("body", "touch-end", motionEvent.getX() + " " + motionEvent.getY());
-                    break;
-                }
-                return true;
-            }
-        });
-        close_button_ = findViewById(R.id.imageButton);
         http_params_ = new HashMap<String, String>();
         Setup();
         Begin();
     }
-    @Override
-    protected void onDestroy()
+
+    @Override protected void onDestroy()
     {
         End();
         super.onDestroy();
     }
 
-    @Override
-    protected void onStart()
+    @Override protected void onStart()
     {
         super.onStart();
         Create();
     }
 
-    @Override
-    protected void onStop()
+    @Override protected void onStop()
     {
         super.onStop();
         Destroy();
     }
 
-    @Override
-    protected void onResume()
+    @Override protected void onResume()
     {
         super.onResume();
         Start();
     }
 
-    @Override
-    protected void onPause()
+    @Override protected void onPause()
     {
         super.onPause();
         Stop();
     }
 
-    @Override
-    public void onBackPressed()
+    @Override public void onBackPressed()
     {
         Escape();
     }
 
-    @android.webkit.JavascriptInterface public void postMessage(int receiver, String id, String command, String info)
+    @android.webkit.JavascriptInterface public void postMessage(
+        int receiver, String id, String command, String info)
     {
         web_view_.post(new Runnable()
         {
@@ -161,64 +132,7 @@ public class MainActivity extends Activity
         });
     }
 
-    public void LoadWebView(int sender, int view_info, String fileName)
-    {
-        pixels_ = null;
-        image_view_.setVisibility(View.GONE);
-        LoadView(web_view_, view_info, sender);
-        web_view_.setVisibility(View.VISIBLE);
-        web_view_.post(new Runnable()
-        {
-            public void run()
-            { 
-                web_view_.setWebViewClient(new WebViewClient()
-                {
-                    @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request)
-                    {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, request.getUrl());
-                        view.getContext().startActivity(intent);
-                        return true;
-                    }
-                    @Override public void onPageFinished(WebView web_view, String url)
-                    {
-                        super.onPageFinished(web_view, url);
-                        web_view.evaluateJavascript(
-                            "var Handler = Handler_;" +
-                            "var Handler_Receiver = " + sender + ";" +
-                            "function CallHandler(id, command, info)" +
-                            "{" +
-                            "Handler.postMessage(Handler_Receiver, id, command, info);" +
-                            "}", null);
-                        HandleAsync(sender, "body", "ready", "");
-                    }
-                });
-                web_view_.loadUrl("file:///android_asset/" + fileName + ".htm");
-            }
-        });
-    }
-
-    public void LoadImageView(int sender, int view_info, int image_width)
-    {
-        web_view_.setWebViewClient(null);
-        web_view_.loadUrl("about:blank");
-        web_view_.setVisibility(View.GONE);
-        LoadView(image_view_, view_info, sender);
-        image_view_.setVisibility(View.VISIBLE);
-        image_view_.post(new Runnable()
-        {
-            public void run()
-            {
-                float scale = (float)image_width / (float)image_view_.getWidth();
-                bmp_ = Bitmap.createBitmap(image_width,
-                    (int)(image_view_.getHeight() * scale), Bitmap.Config.ARGB_8888);
-                pixels_ = new int[bmp_.getWidth() * bmp_.getHeight()];
-                HandleAsync(sender, "body", "ready", (int)(getResources().getDisplayMetrics().xdpi * scale) + " " +
-                    bmp_.getWidth() + " " + bmp_.getHeight() + " " + 0x02010003);
-            }
-        });
-    }
-
-    private void LoadView(View v, int view_info, int sender)
+    public void LoadView(int sender, int view_info, String fileName)
     {
         sender_ = sender;
         switch (view_info & 3)
@@ -233,45 +147,83 @@ public class MainActivity extends Activity
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
             break;
         }
-        if ((view_info & 8) != 0)
-            close_button_.setVisibility(View.VISIBLE);
-        else
-            close_button_.setVisibility(View.GONE);
         if ((view_info & 4) != 0)
-            getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            getWindow().addFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         else
-            getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
-    }
-
-    public void RefreshImageView()
-    {
-        bmp_.setPixels(pixels_, 0, bmp_.getWidth(), 0, 0, bmp_.getWidth(), bmp_.getHeight());
-        image_view_.setImageBitmap(bmp_);
+            getWindow().clearFlags(
+                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        web_view_.post(new Runnable()
+        {
+            public void run()
+            { 
+                web_view_.setWebViewClient(new WebViewClient()
+                {
+                    @Override public boolean shouldOverrideUrlLoading(
+                        WebView view, WebResourceRequest request)
+                    {
+                        return true;
+                    }
+                    @Override public void onPageFinished(
+                        WebView web_view, String url)
+                    {
+                        super.onPageFinished(web_view, url);
+                        web_view.evaluateJavascript(
+                            "var Handler = Handler_;" +
+                            "var Handler_Receiver = " + sender + ";" +
+                            "function CallHandler(id, command, info)" +
+                            "{" +
+                            "Handler.postMessage(" +
+                            "Handler_Receiver, id, command, info);" +
+                            "}" +
+                            "var cross_asset_domain_ = 'asset://';" +
+                            "var cross_asset_async_ = true;" +
+                            "var cross_pointer_type_ = 'touch';" +
+                            "var cross_pointer_upsidedown_ = false;"
+                            , null);
+                        HandleAsync(sender, "body", "ready", "");
+                    }
+                    @Override public WebResourceResponse shouldInterceptRequest(
+                        WebView view, WebResourceRequest request)
+                    {
+                        String url = request.getUrl().toString();
+                        if (url.startsWith("cross://"))
+                        {
+                            byte[] data = FeedUri(url);
+                            if (data != null && data.length > 0)
+                            {
+                                return new WebResourceResponse("", "",
+                                    new ByteArrayInputStream(data));
+                            }
+                        }
+                        else if (url.startsWith("asset://"))
+                        {
+                            try
+                            {
+                                String file = url.replace("asset://", "");
+                                InputStream input = getAssets().open(file);
+                                int size = input.available();
+                                byte[] data = new byte[size];
+                                input.read(data);
+                                input.close();
+                                return new WebResourceResponse("", "",
+                                    new ByteArrayInputStream(data));
+                            }
+                            catch (IOException e)
+                            {
+                            }
+                        }
+                        return super.shouldInterceptRequest(view, request);
+                    }
+                });
+                web_view_.loadUrl("file:///android_asset/" + fileName + ".htm");
+            }
+        });
     }
 
     public void CallFunction(String function)
     {
-        web_view_.evaluateJavascript(function, null);;
-    }
-
-    public String GetAsset(String key)
-    {
-        String assetValue;
-        try
-        {
-            InputStream stream = getAssets().open(key);
-            int size = stream.available();
-            byte[] buffer = new byte[size];
-            stream.read(buffer);
-            stream.close();
-            assetValue = new String(buffer);
-
-        }
-        catch (IOException e)
-        {
-            assetValue = "";
-        }
-        return assetValue;
+        web_view_.evaluateJavascript(function, null);
     }
 
     public String GetPreference(String key)
@@ -281,7 +233,8 @@ public class MainActivity extends Activity
 
     public void SetPreference(String key, String value)
     {
-        getPreferences(Context.MODE_PRIVATE).edit().putString(key, value).commit();
+        getPreferences(
+            Context.MODE_PRIVATE).edit().putString(key, value).commit();
     }
 
     public void AsyncMessage(int sender, String id, String command, String info)
@@ -311,27 +264,40 @@ public class MainActivity extends Activity
                 try
                 {
                     URL dest = new URL(url);
-                    HttpURLConnection httpURLConnection = (HttpURLConnection) dest.openConnection();
+                    HttpURLConnection httpURLConnection =
+                        (HttpURLConnection) dest.openConnection();
                     httpURLConnection.setRequestMethod("POST");
-                    httpURLConnection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    httpURLConnection.setRequestProperty(
+                        "Content-Type", "application/x-www-form-urlencoded");
                     try
                     {
                         httpURLConnection.setDoInput(true);
                         httpURLConnection.setDoOutput(true);
                         httpURLConnection.setChunkedStreamingMode(0);
-                        OutputStream outputStream = new BufferedOutputStream(httpURLConnection.getOutputStream());
-                        OutputStreamWriter outputStreamWriter = new OutputStreamWriter(outputStream);
-                        for (HashMap.Entry<String, String> entry : params.entrySet())
+                        OutputStream outputStream = new BufferedOutputStream(
+                            httpURLConnection.getOutputStream());
+                        OutputStreamWriter outputStreamWriter =
+                            new OutputStreamWriter(outputStream);
+                        for (HashMap.Entry<String, String> entry :
+                            params.entrySet())
                         {
-                            outputStreamWriter.write(URLEncoder.encode(entry.getKey(), java.nio.charset.StandardCharsets.UTF_8.toString()));
+                            outputStreamWriter.write(URLEncoder.encode(
+                                entry.getKey(),
+                                java.nio.charset.StandardCharsets.UTF_8.toString
+                                ()));
                             outputStreamWriter.write("=");
-                            outputStreamWriter.write(URLEncoder.encode(entry.getValue(), java.nio.charset.StandardCharsets.UTF_8.toString()));
+                            outputStreamWriter.write(URLEncoder.encode(
+                                entry.getValue(),
+                                java.nio.charset.StandardCharsets.UTF_8.toString
+                                ()));
                             outputStreamWriter.write("&");
                         }
                         outputStreamWriter.flush();
                         outputStreamWriter.close();
-                        InputStream inputStream = new BufferedInputStream(httpURLConnection.getInputStream());
-                        InputStreamReader inputStreamReader = new InputStreamReader(inputStream);
+                        InputStream inputStream = new BufferedInputStream(
+                            httpURLConnection.getInputStream());
+                        InputStreamReader inputStreamReader =
+                            new InputStreamReader(inputStream);
                         String response = new String();
                         if (httpURLConnection.getResponseCode() == 200)
                         {
@@ -346,7 +312,8 @@ public class MainActivity extends Activity
                         {
                             public void run()
                             {
-                                HandleAsync(sender, id, command, final_response);
+                                HandleAsync(
+                                    sender, id, command, final_response);
                             }
                         });
                         inputStreamReader.close();
@@ -365,6 +332,22 @@ public class MainActivity extends Activity
                 return null;
             }
         }.execute();
+    }
+
+    public void CreateImage(String id, String parent)
+    {
+        web_view_.evaluateJavascript(
+            "var img = document.createElement('img');" +
+            "img.setAttribute('id', '" + id + "');" +
+            "document.getElementById('" + parent +
+            "').appendChild(img);"
+            , null);
+    }
+
+    public void ResetImage(int sender, int index, String id)
+    {
+        web_view_.evaluateJavascript(
+            "resetImage(" + sender + "," + index + ",'" + id + "')", null);
     }
 
     public void Exit()
