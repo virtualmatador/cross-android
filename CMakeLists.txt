@@ -52,6 +52,7 @@ foreach(ANDROID_ABI ${abis})
     add_custom_target("${ANDROID_ABI}_Target" DEPENDS "${lib_file}")
     add_dependencies("${ANDROID_ABI}_Target" "${ANDROID_ABI}_Importer")
     add_custom_command(OUTPUT "${lib_file}"
+        DEPENDS "lib${ANDROID_ABI}.so"
         COMMAND ${CMAKE_COMMAND} -E make_directory "lib/${ANDROID_ABI}"
         COMMAND ${CMAKE_COMMAND} -E copy "lib${ANDROID_ABI}.so" "${lib_file}"
     )
@@ -86,8 +87,8 @@ add_custom_command(OUTPUT "app.png"
     COMMAND inkscape -o "app.png" -w 512 -h 512 "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
 )
 
-add_custom_target("${cross_identifier}.aab" ALL DEPENDS "${cross_identifier}.aab")
-add_custom_command(OUTPUT "${cross_identifier}.aab"
+add_custom_target("${cross_identifier}.aab" ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/res-linked.apk
         ${CMAKE_CURRENT_BINARY_DIR}/dex/classes.dex
@@ -102,8 +103,9 @@ add_custom_command(OUTPUT "${cross_identifier}.aab"
     COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="output.aab"
     COMMAND jarsigner -keystore "${CROSS_SIGNKEY_PATH}/keystore" -storepass `cat "${CROSS_SIGNKEY_PATH}/pass"` -signedjar "${cross_identifier}.aab" "output.aab" apk-key
 )
-add_custom_target("${cross_identifier}.apk" ALL DEPENDS "universal.apk")
-add_custom_command(OUTPUT "universal.apk"
+add_custom_target("${cross_identifier}.apk" ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/universal.apk")
+add_dependencies("${cross_identifier}.apk" "${cross_identifier}.aab")
+add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/universal.apk"
     DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
     COMMAND ${CMAKE_COMMAND} -E remove "${cross_identifier}.apks"
     COMMAND java -jar "${bundle_tool}" build-apks --ks="${CROSS_SIGNKEY_PATH}/keystore" --ks-key-alias=apk-key --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" --bundle="${cross_identifier}.aab" --output="${cross_identifier}.apks" --mode=universal

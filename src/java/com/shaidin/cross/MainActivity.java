@@ -43,7 +43,7 @@ public class MainActivity extends Activity
 {
     WebView web_view_;
     int sender_;
-    HashMap<String, String> http_params_ = new HashMap<String, String>();
+    HashMap<String, String> http_params_;
 
     static {System.loadLibrary("native");}
     public native void Setup();
@@ -353,11 +353,6 @@ public class MainActivity extends Activity
     public void Exit()
     {
         finish();
-    }
-
-    public void Escape(View view)
-    {
-        Escape();
     }
 
 }
