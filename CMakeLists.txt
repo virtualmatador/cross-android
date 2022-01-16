@@ -99,17 +99,8 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
     COMMAND cd obj && jar xf "../res-linked.apk" resources.pb AndroidManifest.xml res
     COMMAND ${CMAKE_COMMAND} -E rename "obj/AndroidManifest.xml" "obj/manifest/AndroidManifest.xml"
     COMMAND cd obj && jar cMf ../base.zip ../dex ../lib "manifest" "res" "resources.pb" "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
-    COMMAND ${CMAKE_COMMAND} -E remove "output.aab"
-    COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="output.aab"
-    COMMAND jarsigner -keystore "${CROSS_SIGNKEY_PATH}/keystore" -storepass `cat "${CROSS_SIGNKEY_PATH}/pass"` -signedjar "${cross_identifier}.aab" "output.aab" apk-key
-)
-add_custom_target("${cross_identifier}.apk" ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/universal.apk")
-add_dependencies("${cross_identifier}.apk" "${cross_identifier}.aab")
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/universal.apk"
-    DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
-    COMMAND ${CMAKE_COMMAND} -E remove "${cross_identifier}.apks"
-    COMMAND java -jar "${bundle_tool}" build-apks --ks="${CROSS_SIGNKEY_PATH}/keystore" --ks-key-alias=apk-key --ks-pass file:"${CROSS_SIGNKEY_PATH}/pass" --bundle="${cross_identifier}.aab" --output="${cross_identifier}.apks" --mode=universal
-    COMMAND jar xf "${cross_identifier}.apks"
+    COMMAND ${CMAKE_COMMAND} -E remove "${cross_identifier}.aab"
+    COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="${cross_identifier}.aab"
 )
 add_custom_command(OUTPUT "res-linked.apk" "java/com/shaidin/cross/R.java"
     DEPENDS
@@ -159,6 +150,3 @@ add_custom_command(OUTPUT "resources.txt"
     COMMAND ${CMAKE_COMMAND} -E compare_files resources.txt.tmp resources.txt || ${CMAKE_COMMAND} -E echo ${resources_list} > resources.txt
 )
 configure_file("res/layout/main.xml" "res/layout/main.xml" COPYONLY)
-add_custom_target("package-name" ALL
-    COMMAND ${CMAKE_COMMAND} -E echo "${cross_identifier}.aab" > "package-name.txt"
-)
