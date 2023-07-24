@@ -16,7 +16,8 @@
         android:debuggable="false"
         android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
         <activity
-            android:name="com.shaidin.cross.MainActivity">
+            android:name="com.shaidin.cross.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
