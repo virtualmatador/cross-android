@@ -10,7 +10,7 @@ file(GLOB bundle_tool "/usr/local/dev/android-sdk/bundletool-all-*")
 list(SORT bundle_tool)
 list(GET bundle_tool -1 bundle_tool)
 
-file(GLOB sdk_tools_dir "/usr/local/dev/android-sdk/build-tools/*")
+file(GLOB sdk_tools_dir "/usr/local/dev/android-sdk/build-tools/[0-9]*")
 list(SORT sdk_tools_dir)
 list(GET sdk_tools_dir -1 sdk_tools_dir)
 
