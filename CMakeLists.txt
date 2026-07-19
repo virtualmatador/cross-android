@@ -122,8 +122,8 @@ add_custom_command(OUTPUT "dex/classes.dex"
 )
 list(APPEND xml_commands
     -u /manifest/@package -v ${cross_identifier}
-	-u /manifest/@android:versionCode -v ${CMAKE_PROJECT_VERSION_PATCH}
-	-u /manifest/@android:versionName -v ${CMAKE_PROJECT_VERSION_MAJOR}.${CMAKE_PROJECT_VERSION_MINOR}
+	-u /manifest/@android:versionCode -v ${BUILD_NUMBER}
+	-u /manifest/@android:versionName -v ${CMAKE_PROJECT_VERSION}
 	-u /manifest/application/@android:label -v ${cross_target}
     -u /manifest/application/@android:debuggable -v ${jdk_debug}
     -u /manifest/uses-sdk/@android:targetSdkVersion -v ${sdk_version}
