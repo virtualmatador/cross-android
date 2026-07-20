@@ -87,8 +87,34 @@ add_custom_command(OUTPUT "app.png"
     COMMAND DBUS_SESSION_BUS_ADDRESS= inkscape -o "app.png" -w 512 -h 512 "${CMAKE_CURRENT_SOURCE_DIR}/../../icon.svg"
 )
 
-add_custom_target("${cross_identifier}.aab" ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab")
-add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
+set(unsigned_bundle "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.unsigned.aab")
+set(signed_bundle "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab")
+set(signing_dir "${CMAKE_CURRENT_SOURCE_DIR}/../../build-asset/android-signing")
+set(signing_keystore "${signing_dir}/keystore")
+set(signing_password "${signing_dir}/pass")
+
+file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/deploy.json"
+    CONTENT [=[
+{
+  "package": "@cross_identifier@",
+  "bundle": "@cross_identifier@.aab"
+}
+]=])
+
+add_custom_target("${cross_identifier}.aab" ALL DEPENDS "${signed_bundle}")
+add_custom_command(OUTPUT "${signed_bundle}"
+    DEPENDS
+        "${unsigned_bundle}"
+        "${signing_keystore}"
+        "${signing_password}"
+    COMMAND jarsigner
+        -keystore "${signing_keystore}"
+        -storepass:file "${signing_password}"
+        -signedjar "${signed_bundle}"
+        "${unsigned_bundle}"
+        apk-key
+)
+add_custom_command(OUTPUT "${unsigned_bundle}"
     DEPENDS
         ${CMAKE_CURRENT_BINARY_DIR}/res-linked.apk
         ${CMAKE_CURRENT_BINARY_DIR}/dex/classes.dex
@@ -99,8 +125,8 @@ add_custom_command(OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${cross_identifier}.aab"
     COMMAND cd obj && jar xf "../res-linked.apk" resources.pb AndroidManifest.xml res
     COMMAND ${CMAKE_COMMAND} -E rename "obj/AndroidManifest.xml" "obj/manifest/AndroidManifest.xml"
     COMMAND cd obj && jar cMf ../base.zip ../dex ../lib "manifest" "res" "resources.pb" "${CMAKE_CURRENT_SOURCE_DIR}/../../assets"
-    COMMAND ${CMAKE_COMMAND} -E remove "${cross_identifier}.aab"
-    COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="${cross_identifier}.aab"
+    COMMAND ${CMAKE_COMMAND} -E remove "${unsigned_bundle}"
+    COMMAND java -jar "${bundle_tool}" build-bundle --modules=base.zip --output="${unsigned_bundle}"
 )
 add_custom_command(OUTPUT "res-linked.apk" "java/com/shaidin/cross/R.java"
     DEPENDS
